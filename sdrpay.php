@@ -157,11 +157,19 @@ function display_cart_item_solidar_price($item_data, $cart_item) {
   return $item_data;
 }
 
+// add subtotal Solidar amount to cart
 add_filter('woocommerce_cart_subtotal', 'add_solidar_subtotal');
 function add_solidar_subtotal($product_subtotal) {
   $solidar_total = 0;
-  if ($solidar_total == 0)
-    return $product_subtotal;
-  $product_subtotal = $product_subtotal . <br/> . 'SDR: ' . $solidar_total; 
-  return $product_subtotal;
+  foreach( WC()->cart->get_cart() as $cart_item ){
+    $product_id = $cart_item['product_id'];
+    $product_qty = $cart_item['quantity'];
+    $solidar_price = get_post_meta($product_id, '_sdrprice_field', true);
+    $solidar_total = $solidar_total + $solidar_price * $product_qty;
+  }
+  if($solidar_total == 0)   return $product_subtotal;
+
+  return $product_subtotal . '<br/>SDR: ' . $solidar_total;
 }
+
+
