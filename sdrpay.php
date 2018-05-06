@@ -172,4 +172,21 @@ function add_solidar_subtotal($product_subtotal) {
   return $product_subtotal . '<br/>SDR: ' . $solidar_total;
 }
 
+//add solidar price to order
+add_action( 'woocommerce_checkout_create_order_line_item', 'add_solidar_amount_to_order', 10, 4 );
+function add_solidar_amount_to_order( $item, $cart_item_key, $values, $order ) {
+
+  if ( empty( $values['iconic-engraving'] ) ) {
+    return;
+  }
+
+    $item->add_meta_data( __( 'Engraving', 'iconic' ), $values['iconic-engraving'] );
+}
+
+//remove place order until solidar amount is payed
+add_filter( 'woocommerce_order_button_html', 'filter_woocommerce_order_button_html', 10, 1 );
+function filter_woocommerce_order_button_html( $input_type_submit_class_button_alt_name_woocommerce_chec$
+    // make filter magic happen here...
+    return; // $input_type_submit_class_button_alt_name_woocommerce_checkout_place_order_id_place_order_$
+};
 
