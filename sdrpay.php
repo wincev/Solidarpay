@@ -1,7 +1,12 @@
-<?php /** * Plugin Name: SolidarPay * Plugin URI: https://solidar.it * 
-Description: A plugin to split payments between Solidar bot and fiat 
-currencies via PayPal. * Author: Hendrik Richter * Version: 1.0 * 
-License: GPLv2 */
+<?php 
+/** 
+* Plugin Name: SolidarPay
+* Plugin URI: https://solidar.it
+* Description: A plugin to split payments between Solidar bot and fiat currencies via PayPal.
+* Author: Hendrik Richter
+* Version: 1.0
+* License: GPLv2
+*/
 
 // Display Fields
 add_action('woocommerce_product_options_general_product_data', 'solidar_sdrprice_field');
@@ -172,16 +177,31 @@ function add_solidar_subtotal($product_subtotal) {
   return $product_subtotal . '<br/>SDR: ' . $solidar_total;
 }
 
-//add solidar price to order
-add_action( 'woocommerce_checkout_create_order_line_item', 'add_solidar_amount_to_order', 10, 4 );
-function add_solidar_amount_to_order( $item, $cart_item_key, $values, $order ) {
-
-  if ( empty( $values['iconic-engraving'] ) ) {
-    return;
+//check how much solidar each vendor gets paid and request payment id
+add_action('woocommerce_checkout_create_order', 'add_solidar_payment_id', 20, 2);
+function add_solidar_payment_id( $order, $data ) {
+  $solidar_order = array();
+  foreach( WC()->cart->get_cart() as $cart_item ){
+    $solidar_total = 0;
+    $product_id = $cart_item['product_id'];
+    $product_qty = $cart_item['quantity'];
+    $solidar_price = get_post_meta($product_id, '_sdrprice_field', true);
+    $solidar_total = $solidar_total + $solidar_price * $product_qty;
+    $solidar_merchant = get_post_meta($product_id, '_sdrmerchant_field', true);
+    if($solidar_order[$solidar_merchant] == 0 ) {
+      $solidar_order[$solidar_merchant] = $solidar_price;
+    }
+    else {
+    $solidar_order[$solidar_merchant] = $solidar_order[$solidar_merchant] + $solidar_price;
+    }
   }
-
-    $item->add_meta_data( __( 'Engraving', 'iconic' ), $values['iconic-engraving'] );
+  if (empty($solidar_order)) return;
+  //build the payment request:
+  $requestURL = 'https://solidar.it/merchant/generatePaymentID.php?';
+  $order->update_meta_data('_solidar_payment_id', $payment_id);
+  $order->update_meta_data('_solidar_payment_confirm', 'no');
 }
+
 
 //remove place order until solidar amount is payed
 add_filter( 'woocommerce_order_button_html', 'filter_woocommerce_order_button_html', 10, 1 );
