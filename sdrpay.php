@@ -91,7 +91,6 @@ add_filter('woocommerce_cart_subtotal', 'add_solidar_subtotal');
 function add_solidar_subtotal($product_subtotal) {
   $solidar_total = 0;
   $solidar_order = array();
-
   foreach( WC()->cart->get_cart() as $cart_item ){
     $solidar_total = 0;
     $product_id = $cart_item['product_id'];
@@ -107,33 +106,61 @@ function add_solidar_subtotal($product_subtotal) {
     $solidar_order['solidarpay']['merchant'][$solidar_merchant] = $solidar_order['solidarpay']['merchant'][$solidar_merchant] + $solidar_per_item;
     }
   }
-
-  if($solidar_total == 0)   return $product_subtotal;
-
-  WC()->cart->set_removed_cart_contents($solidar_order);
+  //Don't save solidar price if no order 
+  if($solidar_total == 0) {
+    $rem_cont_arr = WC()->cart->get_removed_cart_contents();
+    unset($rem_cont_arr['solidarpay']['merchant'];
+    unset($rem_cont_arr['solidarpay']['pay_id'];
+    WC()->cart->set_removed_cart_contents($rem_cont_arr);
+    return $product_subtotal;
+  }
+ 
+  $rem_cont_arr = WC()->cart->get_removed_cart_contents();
+  unset($rem_cont_arr['solidarpay']['merchant'];
+  $new_cont_arr = array_merge($rem_cont_arr, $solidar_order);
+  WC()->cart->set_removed_cart_contents($new_cont_arr);
   return $product_subtotal . '<br/>SDR: ' . $solidar_total;
 }
 
 //Deny place order until solidar amount is payed
 add_action( 'woocommerce_order_button_html', 'filter_woocommerce_order_button_html', 10, 1 );
 function filter_woocommerce_order_button_html( $button_place_order ) {
-  $requestURL = 'https://solidar.it/merchant/generatePaymentID.php?';
-
-  $reload_checkout = get_permalink( wc_get_page_id( 'checkout' ) );
-  echo '<a href="' . $reload_checkout . '">Extra Button</a>';
-  $pay_array = WC()->cart->get_removed_cart_contents();
-  foreach($pay_array as $key => $content){
-    echo "Key: $key Content: $content </br>" ;
-  }
-
   $removed_contents =  WC()->cart->get_removed_cart_contents();
   $solidarpay = $removed_contents['solidarpay'];
   if (empty($solidarpay['pay_id']) && empty($solidarpay['merchant'])) {
     return $button_place_order;
   }
+  $requestURL = 'https://solidar.it/merchant/generatePaymentID.php?';
+  $pay_array = array();
+  if(!empty($solidarpay['merchant'])) {
+    foreach($solidarpay['merchant'] as $merchant => $amount) {
+      $temp_attay = json_decode(file_get_contents($requestURL . 'merchant=' . $merchant . '&amount=' . $amount));
+      if ( !empty($temp_array['error'])) {
+        $pay_array['solidarpay']['pay_id']['error'] = 'Error: $temp_array['error'], contact site Support';
+      } else { 
+        $pay_array['solidarpay']['pay_id'][$merchant] = $temp_array['paymentid'];
+      }
+    }
+    unset($removed_contents['solidarpay']);
+    $new_cont_arr = array_merge($removed_contents, $pay_array);
+    WC()->cart->set_removed_cart_contents($new_cont_arr);
+  }
+  $get_payed_array =  WC()->cart->get_removed_cart_contents();
+	  
+  $reload_checkout = get_permalink( wc_get_page_id( 'checkout' ) );
   echo 'To continue please settle the m.me/solidar.winc payment first:';
-
+  
+  foreach ($get_payed_array['solidarpay']['pay_id']['merchant'] as $merchant => $pay_id) {
+     $requestURL = 'https://solidar.it/merchant/checkPaymentID.php?';
+     $array_ids = json_decode(file_get_contents($requestURL . 'paymentid=' . $pay_id));
+     if($array_ids['executed'] == true) {
+		  $get_payed_array['payed_id'][$merchant] = $pay_id;
+		  unset($get_payed_array['pay_id'][$merchant]);
+     } else {
+		 echo "$pay_id ; ";
+	 }
+  }
+  echo '<a href="' . $reload_checkout . '"> </br>Continue</a>';
   return;
 }
-
 ?>
