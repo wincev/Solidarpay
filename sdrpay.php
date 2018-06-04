@@ -131,8 +131,8 @@ function filter_woocommerce_order_button_html( $button_place_order ) {
   if(!empty($solidarpay['merchant'])) {
     foreach($solidarpay['merchant'] as $merchant => $amount) {
       $temp_array = json_decode(file_get_contents("https://solidar.it/merchant/generatePaymentID.php?merchant=" . $merchant . "&amount=" . $amount));
-      $pay_array['solidarpay']['pay_id']['error'] = $temp_array;
-      if ( !empty($temp_array->error)) {
+
+     if ( !empty($temp_array->error)) {
         $error = $temp_array->error;
         $pay_array['solidarpay']['pay_id']['error'] = "Error: $error, contact site Support!";
       } else {
